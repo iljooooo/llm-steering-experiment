@@ -1,6 +1,6 @@
 # ACTIVATION ENGINEERING
 
-:warning::traffic-light: WORK IN PROGRESS 
+:warning::traffic_light: WORK IN PROGRESS 
 
 This repo was created rather quickly after I got insipired by these other two resources:
 - Both [this video](https://www.youtube.com/watch?v=F9-u6Wezquk) and [its corresponding codebase](https://github.com/mensae/adv-steering)
