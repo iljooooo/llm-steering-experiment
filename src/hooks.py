@@ -3,7 +3,8 @@ Hooks are designed to handle debug functionalities of different modules, and to 
 
 They will be imported and used by `models.py` (or similar) in order to be automatically assigned and handled by built-in functionalities. See that (or those) files for more details.
 
-Even though they are still not written, it is possible that we will write hooks also for training phase (extraction of steering vectors)
+Even though they are still not written, it is possible that we will write hooks also for training phase (extraction of steering vectors).
+
 '''
 
 import torch.mps as mps
