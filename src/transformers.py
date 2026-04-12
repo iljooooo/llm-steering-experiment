@@ -7,6 +7,8 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from torch.nn import Module
 from typing import Tuple, Any, Literal
 
+_Device = Literal['cpu', 'cuda', 'mps']
+
 '''
 Loader methods for HuggingFace transformers models. This module contains also API support and is intended to be self-contained
 '''
@@ -18,11 +20,11 @@ Loader methods for HuggingFace transformers models. This module contains also AP
 # huggingface API key should be available at:
 # ~/.cache/huggingface/token
 
-def load_model(model_name) -> Module:
+def load_model(model_name, device: _Device = 'cpu') -> Module:
     model =  AutoModelForCausalLM.from_pretrained(
         model_name,
         # token = API_KEY,
-        device_map='auto',
+        device_map=device,
         torch_dtype='auto'
     )
 

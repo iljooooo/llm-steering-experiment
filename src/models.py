@@ -4,14 +4,27 @@ models.py aims to both abstract and examples wrapper to any model that we aim to
 
 from abc import abstractmethod
 
+from torch import Value
 from torch.nn import Module
 from torch.utils.hooks import RemovableHandle
-from typing import Any, Optional, Literal, Tuple, List
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from transformers.models.llama import LlamaForCausalLM
+from typing import Any, Optional, List, Literal, Sequence, Union
+from transformers import AutoModelForCausalLM
+# from transformers.models.auto.modeling_auto import _BaseModelWithGenerate
+# from transformers.models.llama import LlamaForCausalLM
 
+class NonInstantiableModel(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+##
 
-class _BaseModel(Module):
+_DeviceType = Union[
+    Literal['cpu'],
+    Literal['mps'],
+    Literal['cuda'],
+    Literal['auto'] # auto is meant to represent cases in which the model has to switch between different devices
+]
+
+class _BaseModel:
     '''
     Base class for supported modules. It should work on a 2-way basis:
     - introduce mandatory methods (abstract)
@@ -22,11 +35,25 @@ class _BaseModel(Module):
     - setting/management of debug mode
     - general and common parameters
     - complete pipelines for specific experiments (computing steering vec, running tests...)
+
+    Currently does not support *args support for internal logic purposes
     '''
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self._handles: Optional[List[RemovableHandle]] = None # contains info about the hooks
+
+        self._model_name: Optional[str]
+
+
+        if self._model_name is not None:
+            self = AutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path=self._model_name, *args, **kwargs)
+        else:
+            raise NonInstantiableModel('Unable to recover model name from object metadata')
+    
+        self._handles: Optional[Sequence[RemovableHandle]] = None   # contains all the hooks info about the hooks
+        self._device: _DeviceType = kwargs.get('device_map')        # contains info about the device
+
+        if self._device == 'auto':
+            pass #instantiate auto memory hooks!
     ##    
 
     ## FORWARD_HOOKS
@@ -53,7 +80,17 @@ class _BaseModel(Module):
         pass
     ##
 
-
+    ## DIFFERENT METHODS THAT SHOULD BE INCLUDED: SPECIFIC HOOK ASSIGNMENT TO HANDLE DIFFERENT PHASES DURING THE EXPERIMENT
+    @abstractmethod
+    def _mode_to_steering_vector_computing(self):
+        pass
+    @abstractmethod
+    def _mode_to_steering_closed_amswer(self):
+        pass
+    @abstractmethod
+    def _mode_to_steered_open_generation(self):
+        pass
+    ## others? 
 
     def _remove_hooks(self) -> None:
         '''
@@ -66,15 +103,34 @@ class _BaseModel(Module):
         This must be carefully used since it does not synchronize with currently used techniques.
         '''
         if self._handles is None:
-            return
+            return # if we have no hooks there is no reasons to keep it here
         
-        [handle.remove for handle in self._handles]
+        [handle.remove() for handle in self._handles]
         self._handles = None
+    ##
+
+    def _remove_pre_forward_hooks(self):
+        pass
+    def _remove_forward_hooks(self):
+        pass
+    def _remove_backwards_hooks(self):      # this is included even though backward hooks should not be a thing here
+        pass
     ##
 ##
 
+from transformers.models.llama.modeling_llama import LlamaForCausalLM
 class LLamaModel(_BaseModel, LlamaForCausalLM):
-    pass
+    
+    def __init__(
+            self,
+            device_type,
+            *args,
+            **kwargs
+    ) -> None:
+        '''Instantiate a wrapped LLamaModel following standards from the abstract class'''
+        self._model_name = "meta-llama/Llama-3.1-8B-Instruct"
+        super().__init__(*args, **kwargs)
+    ##
 
     ## CHECK OUT FOR LLamaForCauseLM.forward() method, since it allows for `logits_to_keep` argument
 ##
