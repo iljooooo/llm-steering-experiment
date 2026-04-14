@@ -15,3 +15,7 @@ def device() -> str:
 
 ROOT_PATH = Path(__file__).parent.parent # project root path
 DEVICE = device()
+
+MODELS = {
+    'llama3.1': 'meta-llama/Llama-3.1-8B-Instruct'
+}

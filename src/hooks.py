@@ -19,6 +19,9 @@ Device = Literal['cuda', 'mps', 'cpu']
 _TorchInput = Tuple[Tensor, Any, Any]
 _TorchOutput = Tensor
 
+#TODO: adjust dynamical memory handling through MPS optimization via _dynamic_memory (currently not working)
+
+
 class _BaseHook:
     '''Base Hook is designed to support common features among all other hooks definition after inheritance. These include mostly debugging features that allow for some computation testing'''
     def __init__(self, debug=False, dynamic_memory=False) -> None:
@@ -53,7 +56,7 @@ class _BaseHook:
     def dynamic_memory(self, value: bool):
         if not isinstance(value, bool):
             raise ValueError('cannot assign non-boolean vector to dynamic_memory attribute')
-        self._dynamic_memory = True
+        self._dynamic_memory = value
     ##
 
     def _debug(self):
@@ -150,12 +153,16 @@ class SteeringHook(_BaseHook):
         super().pre_forward_hook(module, input)
         if self.debug_mode:
             print(f'[{module._get_name()}, pre-for]: injecting CAA vector')
-            input_copy = deepcopy(input)
+            input_copy = deepcopy(input) # recall tuple objects can't be edited once assigned
         
         # synchronize devices and cache orginal injection position
         inject_device_cache = self._inject.device
         self._inject = self._inject.to(input[0].device)
-        edited_input = (input[0] + self._inject, *input[1:])
+
+        if self._dynamic_memory:
+            edited_input = ((input[0] + self._inject).to(self._device()), *input[1:])
+        else:
+            edited_input = ((input[0] + self._inject), *input[1:])
         self._inject.to(inject_device_cache)
         
         # eventual debug
