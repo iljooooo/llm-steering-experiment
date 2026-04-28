@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from huggingface_hub import logging
 from typing import Literal, Union
+import argparse
 
 import torch
 import torch.mps as mps
@@ -34,6 +35,11 @@ def load_dataset(
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Compute steering vectors for Llama 3.1')
+    parser.add_argument('--force-computing', action='store_true',
+                        help='Force recomputation even if steering vector files already exist')
+    args = parser.parse_args()
+
     print(PROJECT_DIR)
     llama_model, llama_tokenizer = src.load_all(MODEL_NAME)
     llama_model.to('mps')
@@ -58,7 +64,7 @@ if __name__ == '__main__':
 
         STEERING_VECTORS_PATH = PROJECT_DIR / 'steering-vectors' / 'meta-llama' / 'Llama-3.1-8B-Instruct' / f'{key}.pt'
 
-        if STEERING_VECTORS_PATH.exists():
+        if STEERING_VECTORS_PATH.exists() and not args.force_computing:
             print(f'Steering vector for {STEERING_VECTORS_PATH} already exists! Moving on to the next category')
             continue
 
@@ -105,9 +111,9 @@ if __name__ == '__main__':
                 )
 
             ## GETTING THE STEERS AND MOVING THEM TO CPU
-            # TODO: shall we refer to [-3] element instead? Possibly because the logits are always predictive.
-            positive_steer = torch.stack([hs.squeeze()[-2] for hs in outs_matching.hidden_states]).cpu()
-            negative_steer = torch.stack([hs.squeeze()[-2] for hs in outs_not_matching.hidden_states]).cpu()
+            # Debug: Input sequence length: inputs_matching['input_ids'].shape[1]
+            positive_steer = torch.stack([hs.squeeze()[-1] for hs in outs_matching.hidden_states]).cpu()
+            negative_steer = torch.stack([hs.squeeze()[-1] for hs in outs_not_matching.hidden_states]).cpu()
 
             ## UPDATING THE STEERING VECTORS
             steering_vecs[key] *= i
