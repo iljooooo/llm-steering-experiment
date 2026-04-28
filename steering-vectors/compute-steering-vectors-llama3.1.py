@@ -105,6 +105,7 @@ if __name__ == '__main__':
                 )
 
             ## GETTING THE STEERS AND MOVING THEM TO CPU
+            # TODO: shall we refer to [-3] element instead? Possibly because the logits are always predictive.
             positive_steer = torch.stack([hs.squeeze()[-2] for hs in outs_matching.hidden_states]).cpu()
             negative_steer = torch.stack([hs.squeeze()[-2] for hs in outs_not_matching.hidden_states]).cpu()
 
